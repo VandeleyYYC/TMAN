@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CYYC Daily Metrics Calendar</title>
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    font-family: Arial, sans-serif;
+    color: #16384c;
+}
+
+.calendar-box {
+    width: 390px;
+    box-sizing: border-box;
+    margin: 0 auto;
+    padding: 10px 12px 8px 12px;
+    background: white;
+    border: 1px solid #c7d5dd;
+    border-radius: 8px;
+}
+
+.calendar-title {
+    text-align: center;
+    font-size: 17px;
+    font-weight: bold;
+    color: #004b70;
+    margin-bottom: 7px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+th {
+    font-size: 10px;
+    color: #607580;
+    padding: 3px 0;
+}
+
+td {
+    height: 31px;
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid #e4eaee;
+    font-size: 12px;
+    padding: 0;
+}
+
+.day {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.archive {
+    background: #eaf6fb;
+    color: #005d87;
+}
+
+.archive:hover {
+    background: #d5edf7;
+}
+
+.live {
+    background: #dff4df;
+    color: #176b26;
+}
+
+.live:hover {
+    background: #cceccc;
+}
+
+.no-data {
+    color: #b6bec3;
+}
+
+.viewing {
+    outline: 3px solid #004b70;
+    outline-offset: -3px;
+}
+
+.calendar-footer {
+    text-align: center;
+    font-size: 10px;
+    color: #607580;
+    margin-top: 6px;
+}
+
+.calendar-footer a {
+    color: #176b26;
+    font-weight: bold;
+    text-decoration: none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="calendar-box">
+    <div id="calendar-title" class="calendar-title">
+        CYYC Daily Metrics
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Sun</th>
+                <th>Mon</th>
+                <th>Tue</th>
+                <th>Wed</th>
+                <th>Thu</th>
+                <th>Fri</th>
+                <th>Sat</th>
+            </tr>
+        </thead>
+        <tbody id="calendar-body"></tbody>
+    </table>
+
+    <div class="calendar-footer">
+        <a href="daily_review_latest.html" target="_top">
+            Today / Live
+        </a>
+    </div>
+</div>
+
+<script>
+(async function () {
+
+    const response = await fetch(
+        "daily_index.json",
+        { cache: "no-store" }
+    );
+
+    if (!response.ok) {
+        throw new Error(
+            "Unable to load daily_index.json"
+        );
+    }
+
+    const index = await response.json();
+
+    const archived = new Set(
+        index.archived || []
+    );
+
+    const liveDate = index.live || null;
+
+    const params = new URLSearchParams(
+        window.location.search
+    );
+
+    const viewedDate = params.get("view");
+
+    const allDates = [
+        ...Array.from(archived),
+        ...(liveDate ? [liveDate] : [])
+    ].sort();
+
+    if (!allDates.length) {
+        return;
+    }
+
+    /*
+      For now the calendar displays the month containing
+      the currently viewed date, or the live date if no
+      historical view was supplied.
+    */
+    const referenceDate =
+        viewedDate ||
+        liveDate ||
+        allDates[allDates.length - 1];
+
+    const parts = referenceDate.split("-");
+
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+
+    const monthNames = [
+        "January", "February", "March", "April",
+        "May", "June", "July", "August",
+        "September", "October", "November", "December"
+    ];
+
+    document.getElementById(
+        "calendar-title"
+    ).textContent =
+        monthNames[month - 1] + " " + year;
+
+    const firstDay =
+        new Date(Date.UTC(year, month - 1, 1))
+            .getUTCDay();
+
+    const daysInMonth =
+        new Date(Date.UTC(year, month, 0))
+            .getUTCDate();
+
+    const tbody =
+        document.getElementById("calendar-body");
+
+    let day = 1;
+
+    for (let week = 0; week < 6; week++) {
+
+        const tr = document.createElement("tr");
+
+        for (let dow = 0; dow < 7; dow++) {
+
+            const td = document.createElement("td");
+
+            if (
+                (week === 0 && dow < firstDay) ||
+                day > daysInMonth
+            ) {
+                tr.appendChild(td);
+                continue;
+            }
+
+            const dateKey =
+                String(year).padStart(4, "0") + "-" +
+                String(month).padStart(2, "0") + "-" +
+                String(day).padStart(2, "0");
+
+            if (dateKey === liveDate) {
+
+                const a = document.createElement("a");
+
+                a.href = "daily_review_latest.html";
+                a.target = "_top";
+                a.textContent = day;
+                a.className = "day live";
+
+                if (dateKey === viewedDate) {
+                    a.classList.add("viewing");
+                }
+
+                td.appendChild(a);
+
+            } else if (archived.has(dateKey)) {
+
+                const a = document.createElement("a");
+
+                a.href =
+                    "daily/cyyc_daily_summary_" +
+                    dateKey +
+                    ".html";
+
+                a.target = "_top";
+                a.textContent = day;
+                a.className = "day archive";
+
+                if (dateKey === viewedDate) {
+                    a.classList.add("viewing");
+                }
+
+                td.appendChild(a);
+
+            } else {
+
+                td.textContent = day;
+                td.className = "no-data";
+            }
+
+            day++;
+            tr.appendChild(td);
+        }
+
+        tbody.appendChild(tr);
+
+        if (day > daysInMonth) {
+            break;
+        }
+    }
+
+})();
+</script>
+
+</body>
+</html>
