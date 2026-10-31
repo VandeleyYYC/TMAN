@@ -23,12 +23,36 @@ html, body {
     border-radius: 8px;
 }
 
+.calendar-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 7px;
+}
+
 .calendar-title {
+    flex: 1;
     text-align: center;
     font-size: 17px;
     font-weight: bold;
     color: #004b70;
-    margin-bottom: 7px;
+}
+
+.calendar-nav {
+    width: 30px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid #c7d5dd;
+    border-radius: 4px;
+    background: white;
+    color: #004b70;
+    font-size: 20px;
+    line-height: 22px;
+    cursor: pointer;
+}
+
+.calendar-nav:hover {
+    background: #eaf6fb;
 }
 
 table {
@@ -108,8 +132,25 @@ td {
 <body>
 
 <div class="calendar-box">
-    <div id="calendar-title" class="calendar-title">
-        CYYC Daily Metrics
+    <!-- Oct31 - browse calendar months without changing the viewed daily page. -->
+    <div class="calendar-title-row">
+        <button
+            id="previous-month"
+            class="calendar-nav"
+            type="button"
+            aria-label="Previous month"
+        >&#8249;</button>
+
+        <div id="calendar-title" class="calendar-title">
+            CYYC Daily Metrics
+        </div>
+
+        <button
+            id="next-month"
+            class="calendar-nav"
+            type="button"
+            aria-label="Next month"
+        >&#8250;</button>
     </div>
 
     <table>
@@ -181,7 +222,16 @@ td {
         liveDate ||
         allDates[allDates.length - 1];
 
-    const parts = referenceDate.split("-");
+    // Oct31 - month browsing is independent of the daily page being viewed.
+    // view= continues to identify that page; month= controls only this calendar.
+    const requestedMonth = params.get("month");
+
+    const calendarReferenceDate =
+        requestedMonth
+            ? requestedMonth + "-01"
+            : referenceDate;
+
+    const parts = calendarReferenceDate.split("-");
 
     const year = Number(parts[0]);
     const month = Number(parts[1]);
@@ -196,6 +246,47 @@ td {
         "calendar-title"
     ).textContent =
         monthNames[month - 1] + " " + year;
+
+    // Oct31 - preserve the existing view= date while changing only
+    // the month displayed inside the shared calendar iframe.
+    function browseMonth(offset) {
+
+        const targetDate =
+            new Date(
+                Date.UTC(
+                    year,
+                    month - 1 + offset,
+                    1
+                )
+            );
+
+        const targetMonth =
+            String(targetDate.getUTCFullYear()).padStart(4, "0") +
+            "-" +
+            String(targetDate.getUTCMonth() + 1).padStart(2, "0");
+
+        const nextParams =
+            new URLSearchParams(window.location.search);
+
+        nextParams.set("month", targetMonth);
+
+        window.location.search =
+            nextParams.toString();
+    }
+
+    document.getElementById(
+        "previous-month"
+    ).addEventListener(
+        "click",
+        () => browseMonth(-1)
+    );
+
+    document.getElementById(
+        "next-month"
+    ).addEventListener(
+        "click",
+        () => browseMonth(1)
+    );
 
     const firstDay =
         new Date(Date.UTC(year, month - 1, 1))
